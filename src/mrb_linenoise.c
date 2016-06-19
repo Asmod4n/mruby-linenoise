@@ -3,7 +3,6 @@
 #include <mruby/variable.h>
 #include <mruby/array.h>
 #include <mruby/string.h>
-#include <mruby/hash.h>
 #include <errno.h>
 #include <mruby/error.h>
 #include <string.h>
