@@ -81,6 +81,9 @@ mrb_linenoise_hints_callback(const char *buf, int *color, int *bold, mrb_state *
     const char *hint_mrb = mrb_string_value_cstr(mrb, &res);
     char *hint = strdup(hint_mrb);
     mrb_gc_arena_restore(mrb, ai);
+    if (!hint) {
+      mrb_exc_raise(mrb, mrb_obj_value(mrb->nomem_err));
+    }
     return hint;
   }
 
