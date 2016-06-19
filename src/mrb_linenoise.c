@@ -92,8 +92,7 @@ mrb_linenoise_hints_callback(const char *buf, int *color, int *bold, mrb_state *
 static void
 mrb_linenoise_free_hints_callback(void *hint)
 {
-  if (hint)
-    free(hint);
+  free(hint);
 }
 
 static mrb_value
