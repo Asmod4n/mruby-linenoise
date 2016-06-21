@@ -10,7 +10,8 @@ end
 
 Linenoise.hints do |buf|
   if buf == "hello"
-    Linenoise::Hint.new(" World", 35, true)
+    Linenoise::Hint.new(" World", 35, true) # this is a Struct with the folowing fields: message, color, bold
+    # you can also just return a String
   end
 end
 

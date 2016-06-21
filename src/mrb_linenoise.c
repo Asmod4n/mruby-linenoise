@@ -16,7 +16,9 @@ mrb_linenoise_completion_callback(const char *buf, linenoiseCompletions *lc, mrb
   int ai = mrb_gc_arena_save(mrb);
 
   mrb_value completion_cb = mrb_cv_get(mrb, mrb_obj_value(mrb_module_get(mrb, "Linenoise")), mrb_intern_lit(mrb, "completion_cb"));
-  mrb_assert(mrb_type(completion_cb) == MRB_TT_PROC);
+  if (mrb_type(completion_cb) != MRB_TT_PROC) {
+    return;
+  }
 
   mrb_value buf_val = mrb_str_new_static(mrb, buf, strlen(buf));
   mrb_value res = mrb_yield(mrb, completion_cb, buf_val);
@@ -29,8 +31,7 @@ mrb_linenoise_completion_callback(const char *buf, linenoiseCompletions *lc, mrb
         const char *completion = mrb_string_value_cstr(mrb, &ref);
         linenoiseAddCompletion(lc, completion);
       }
-    }
-      break;
+    } break;
     default: {
       const char *completion = mrb_string_value_cstr(mrb, &res);
       linenoiseAddCompletion(lc, completion);
@@ -64,7 +65,9 @@ mrb_linenoise_hints_callback(const char *buf, int *color, int *bold, mrb_state *
   int ai = mrb_gc_arena_save(mrb);
 
   mrb_value hints_cb = mrb_cv_get(mrb, mrb_obj_value(mrb_module_get(mrb, "Linenoise")), mrb_intern_lit(mrb, "hints_cb"));
-  mrb_assert(mrb_type(hints_cb) == MRB_TT_PROC);
+  if (mrb_type(hints_cb) != MRB_TT_PROC) {
+    return NULL;
+  }
 
   mrb_value buf_val = mrb_str_new_static(mrb, buf, strlen(buf));
   mrb_value res = mrb_yield(mrb, hints_cb, buf_val);
