@@ -29,6 +29,18 @@ while (line = linenoise("hallo> "))
 end
 ```
 
+Other functions
+===============
+
+```ruby
+Linenoise.clear_screen # clears the screen
+Linenoise.multi_line= # enables or disables multi line mode
+
+Linenoise.print_key_codes # a special mode which shows key codes
+
+Linenoise::History.max_len= # changes the max lines the history keeps, defaults to 100
+```
+
 Acknowledgements
 ================
 
