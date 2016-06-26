@@ -5,12 +5,13 @@ mruby wrapper for https://github.com/antirez/linenoise
 Linenoise.completion do |buf|
   if buf[0] == 'h'
     ['hello', 'hello there']
+    # you can also just return a String
   end
 end
 
 Linenoise.hints do |buf|
   if buf == "hello"
-    Linenoise::Hint.new(" World", 35, true) # this is a Struct with the folowing fields: message, color, bold
+    Linenoise::Hint.new(" World", 35, true) # this is a Struct with the folowing fields: to_str, color, bold
     # you can also just return a String
   end
 end
