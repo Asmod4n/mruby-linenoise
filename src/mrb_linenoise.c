@@ -123,9 +123,9 @@ mrb_linenoiseSetHintsCallback(mrb_state *mrb, mrb_value self)
 static mrb_value
 mrb_linenoise(mrb_state *mrb, mrb_value self)
 {
-  const char *prompt;
+  const char *prompt = "> ";
 
-  mrb_get_args(mrb, "z", &prompt);
+  mrb_get_args(mrb, "|z", &prompt);
 
   errno = 0;
   char *line = linenoise(prompt, mrb);
@@ -167,8 +167,10 @@ mrb_linenoiseHistoryAdd(mrb_state *mrb, mrb_value self)
 
   mrb_get_args(mrb, "z", &line);
 
+  errno = 0;
   if (!linenoiseHistoryAdd(line)) {
-    mrb_sys_fail(mrb, "linenoiseHistoryAdd");
+    if (errno)
+      mrb_sys_fail(mrb, "linenoiseHistoryAdd");
   }
 
   return self;
@@ -252,7 +254,7 @@ mrb_mruby_linenoise_gem_init(mrb_state* mrb)
 
   mrb_define_module_function(mrb, linenoise_mod, "completion", mrb_linenoiseSetCompletionCallback, MRB_ARGS_BLOCK());
   mrb_define_module_function(mrb, linenoise_mod, "hints", mrb_linenoiseSetHintsCallback, MRB_ARGS_BLOCK());
-  mrb_define_module_function(mrb, mrb->kernel_module, "linenoise", mrb_linenoise, MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, mrb->kernel_module, "linenoise", mrb_linenoise, MRB_ARGS_OPT(1));
 
   mrb_define_module_function(mrb, linenoise_history_mod, "add", mrb_linenoiseHistoryAdd, MRB_ARGS_REQ(1));
   mrb_define_alias(mrb, linenoise_history_mod, "<<", "add");
