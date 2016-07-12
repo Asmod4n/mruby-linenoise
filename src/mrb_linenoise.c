@@ -71,23 +71,32 @@ mrb_linenoise_hints_callback(const char *buf, int *color, int *bold, mrb_state *
 
   mrb_value buf_val = mrb_str_new_static(mrb, buf, strlen(buf));
   mrb_value res = mrb_yield(mrb, hints_cb, buf_val);
-  if (mrb_respond_to(mrb, res, mrb_intern_lit(mrb, "color"))) {
-    mrb_value color_val = mrb_funcall(mrb, res, "color", 0);
-    *color = mrb_int(mrb, color_val);
-  }
-  if (mrb_respond_to(mrb, res, mrb_intern_lit(mrb, "bold"))) {
-    mrb_value bold_val = mrb_funcall(mrb, res, "bold", 0);
-    *bold = mrb_bool(bold_val);
-  }
 
   if (mrb_test(res)) {
-    const char *hint_mrb = mrb_string_value_cstr(mrb, &res);
-    char *hint = strdup(hint_mrb);
-    mrb_gc_arena_restore(mrb, ai);
-    if (!hint) {
-      mrb_exc_raise(mrb, mrb_obj_value(mrb->nomem_err));
+    if (mrb_respond_to(mrb, res, mrb_intern_lit(mrb, "to_str"))) {
+      mrb_value hint_val = mrb_funcall(mrb, res, "to_str", 0);
+      if (mrb_test(hint_val)) {
+        if (mrb_respond_to(mrb, res, mrb_intern_lit(mrb, "color"))) {
+          mrb_value color_val = mrb_funcall(mrb, res, "color", 0);
+          mrb_int col = mrb_int(mrb, color_val);
+          if (col < INT_MIN||col > INT_MAX) {
+            mrb_raise(mrb, E_RANGE_ERROR, "color doesn't fit into int");
+          }
+          *color = col;
+        }
+        if (mrb_respond_to(mrb, res, mrb_intern_lit(mrb, "bold"))) {
+          mrb_value bold_val = mrb_funcall(mrb, res, "bold", 0);
+          *bold = mrb_bool(bold_val);
+        }
+        const char *hint_mrb = mrb_string_value_cstr(mrb, &res);
+        char *hint = strdup(hint_mrb);
+        mrb_gc_arena_restore(mrb, ai);
+        if (!hint) {
+          mrb_exc_raise(mrb, mrb_obj_value(mrb->nomem_err));
+        }
+        return hint;
+      }
     }
-    return hint;
   }
 
   mrb_gc_arena_restore(mrb, ai);
@@ -127,6 +136,8 @@ mrb_linenoise(mrb_state *mrb, mrb_value self)
 
   mrb_get_args(mrb, "|z", &prompt);
 
+  int errno_save = errno;
+
   errno = 0;
   char *line = NULL;
   while (!(line = linenoise(prompt, mrb)) && (errno == EINTR||errno == EWOULDBLOCK));
@@ -134,8 +145,11 @@ mrb_linenoise(mrb_state *mrb, mrb_value self)
     if (errno) {
       mrb_sys_fail(mrb, "linenoise");
     }
+    errno = errno_save;
     return mrb_nil_value();
   }
+
+  errno = errno_save;
 
   struct mrb_jmpbuf* prev_jmp = mrb->jmp;
   struct mrb_jmpbuf c_jmp;
@@ -168,11 +182,15 @@ mrb_linenoiseHistoryAdd(mrb_state *mrb, mrb_value self)
 
   mrb_get_args(mrb, "z", &line);
 
+  int errno_save = errno;
+
   errno = 0;
   if (!linenoiseHistoryAdd(line)) {
     if (errno)
       mrb_sys_fail(mrb, "linenoiseHistoryAdd");
   }
+
+  errno = errno_save;
 
   return self;
 }
