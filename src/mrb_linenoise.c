@@ -137,10 +137,12 @@ mrb_linenoise(mrb_state *mrb, mrb_value self)
   mrb_get_args(mrb, "|z", &prompt);
 
   int errno_save = errno;
-
-  errno = 0;
   char *line = NULL;
-  while (!(line = linenoise(prompt, mrb)) && (errno == EINTR||errno == EWOULDBLOCK));
+  do {
+    errno = 0;
+    line = linenoise(prompt, mrb);
+  } while (!line && (errno == EAGAIN||errno == EWOULDBLOCK));
+
   if (!line) {
     if (errno) {
       mrb_sys_fail(mrb, "linenoise");
