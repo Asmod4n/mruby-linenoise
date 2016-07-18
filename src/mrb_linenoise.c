@@ -20,8 +20,7 @@ mrb_linenoise_completion_callback(const char *buf, linenoiseCompletions *lc, mrb
     return;
   }
 
-  mrb_value buf_val = mrb_str_new_static(mrb, buf, strlen(buf));
-  mrb_value res = mrb_yield(mrb, completion_cb, buf_val);
+  mrb_value res = mrb_yield(mrb, completion_cb, mrb_str_new_static(mrb, buf, strlen(buf)));
   switch(mrb_type(res)) {
     case MRB_TT_FALSE:
       break;
@@ -59,18 +58,17 @@ mrb_linenoiseSetCompletionCallback(mrb_state *mrb, mrb_value self)
   return self;
 }
 
-static char *
+static char*
 mrb_linenoise_hints_callback(const char *buf, int *color, int *bold, mrb_state *mrb)
 {
-  int ai = mrb_gc_arena_save(mrb);
-
   mrb_value hints_cb = mrb_cv_get(mrb, mrb_obj_value(mrb_module_get(mrb, "Linenoise")), mrb_intern_lit(mrb, "hints_cb"));
   if (mrb_type(hints_cb) != MRB_TT_PROC) {
     return NULL;
   }
 
-  mrb_value buf_val = mrb_str_new_static(mrb, buf, strlen(buf));
-  mrb_value res = mrb_yield(mrb, hints_cb, buf_val);
+  int ai = mrb_gc_arena_save(mrb);
+
+  mrb_value res = mrb_yield(mrb, hints_cb, mrb_str_new_static(mrb, buf, strlen(buf)));
 
   if (mrb_test(res)) {
     if (mrb_respond_to(mrb, res, mrb_intern_lit(mrb, "to_str"))) {
@@ -88,8 +86,7 @@ mrb_linenoise_hints_callback(const char *buf, int *color, int *bold, mrb_state *
           mrb_value bold_val = mrb_funcall(mrb, res, "bold", 0);
           *bold = mrb_bool(bold_val);
         }
-        const char *hint_mrb = mrb_string_value_cstr(mrb, &res);
-        char *hint = strdup(hint_mrb);
+        char *hint = strdup(mrb_string_value_cstr(mrb, &hint_val));
         mrb_gc_arena_restore(mrb, ai);
         if (!hint) {
           mrb_exc_raise(mrb, mrb_obj_value(mrb->nomem_err));
@@ -136,11 +133,13 @@ mrb_linenoise(mrb_state *mrb, mrb_value self)
 
   mrb_get_args(mrb, "|z", &prompt);
 
+  struct RString* s = (struct RString*)mrb_obj_alloc(mrb, MRB_TT_STRING, mrb->string_class);
   int errno_save = errno;
   char *line = NULL;
+  size_t capa = 0;
   do {
     errno = 0;
-    line = linenoise(prompt, mrb);
+    line = linenoise(prompt, mrb, &capa);
   } while (!line && (errno == EAGAIN||errno == EWOULDBLOCK));
 
   if (!line) {
@@ -153,28 +152,17 @@ mrb_linenoise(mrb_state *mrb, mrb_value self)
 
   errno = errno_save;
 
-  struct mrb_jmpbuf* prev_jmp = mrb->jmp;
-  struct mrb_jmpbuf c_jmp;
-  mrb_value res = self;
-
-  MRB_TRY(&c_jmp)
-  {
-    mrb->jmp = &c_jmp;
-
-    res = mrb_str_new_cstr(mrb, line);
+  if (capa > MRB_INT_MAX) {
+    memset(line, 0, capa);
     free(line);
-
-    mrb->jmp = prev_jmp;
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "string size too big");
   }
-  MRB_CATCH(&c_jmp)
-  {
-      mrb->jmp = prev_jmp;
-      free(line);
-      MRB_THROW(mrb->jmp);
-  }
-  MRB_END_EXC(&c_jmp);
 
-  return res;
+  s->as.heap.len = strlen(line);
+  s->as.heap.aux.capa = capa;
+  s->as.heap.ptr = line;
+
+  return mrb_obj_value(s);
 }
 
 static mrb_value

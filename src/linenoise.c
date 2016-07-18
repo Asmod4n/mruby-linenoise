@@ -1000,7 +1000,7 @@ static int linenoiseRaw(char *buf, size_t buflen, const char *prompt, mrb_state 
  * program using linenoise is called in pipe or with a file redirected
  * to its standard input. In this case, we want to be able to return the
  * line regardless of its length (by default we are limited to 4k). */
-static char *linenoiseNoTTY(void) {
+static char *linenoiseNoTTY(size_t *capa) {
     char *line = NULL;
     size_t len = 0, maxlen = 0;
 
@@ -1011,9 +1011,14 @@ static char *linenoiseNoTTY(void) {
             char *oldval = line;
             line = realloc(line,maxlen);
             if (line == NULL) {
-                if (oldval) free(oldval);
+                if (oldval) {
+                    memset(oldval, 0, maxlen / 2);
+                    free(oldval);
+                }
+                *capa = 0;
                 return NULL;
             }
+            *capa = maxlen;
         }
         int c = fgetc(stdin);
         if (c == EOF || c == '\n') {
@@ -1036,14 +1041,15 @@ static char *linenoiseNoTTY(void) {
  * for a blacklist of stupid terminals, and later either calls the line
  * editing function or uses dummy fgets() so that you will be able to type
  * something even in the most desperate of the conditions. */
-char *linenoise(const char *prompt, mrb_state *mrb) {
+char *linenoise(const char *prompt, mrb_state *mrb, size_t *capa) {
     char buf[LINENOISE_MAX_LINE];
     int count;
+    *capa = 0;
 
     if (!isatty(STDIN_FILENO)) {
         /* Not a tty: read from file / pipe. In this mode we don't want any
          * limit to the line size, so we call a function to handle that. */
-        return linenoiseNoTTY();
+        return linenoiseNoTTY(capa);
     } else if (isUnsupportedTerm()) {
         size_t len;
 
@@ -1055,11 +1061,24 @@ char *linenoise(const char *prompt, mrb_state *mrb) {
             len--;
             buf[len] = '\0';
         }
-        return strdup(buf);
+        char *line = strdup(buf);
+        if (line) {
+            *capa = strlen(line) + 1;
+        }
+        memset(buf, 0, sizeof(buf));
+        return line;
     } else {
         count = linenoiseRaw(buf,LINENOISE_MAX_LINE,prompt,mrb);
-        if (count == -1) return NULL;
-        return strdup(buf);
+        if (count == -1) {
+            memset(buf, 0, sizeof(buf));
+            return NULL;
+        }
+        char *line = strdup(buf);
+        if (line) {
+            *capa = strlen(buf) + 1;
+        }
+        memset(buf, 0, sizeof(buf));
+        return line;
     }
 }
 
