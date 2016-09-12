@@ -27,13 +27,11 @@ mrb_linenoise_completion_callback(const char *buf, linenoiseCompletions *lc, mrb
     case MRB_TT_ARRAY: {
       for (mrb_int ary_pos = 0; ary_pos < RARRAY_LEN(res); ary_pos++) {
         mrb_value ref = mrb_ary_ref(mrb, res, ary_pos);
-        const char *completion = mrb_string_value_cstr(mrb, &ref);
-        linenoiseAddCompletion(lc, completion);
+        linenoiseAddCompletion(lc, mrb_string_value_cstr(mrb, &ref));
       }
     } break;
     default: {
-      const char *completion = mrb_string_value_cstr(mrb, &res);
-      linenoiseAddCompletion(lc, completion);
+      linenoiseAddCompletion(lc, mrb_string_value_cstr(mrb, &res));
     }
   }
 
@@ -134,7 +132,6 @@ mrb_linenoise(mrb_state *mrb, mrb_value self)
   mrb_get_args(mrb, "|z", &prompt);
 
   struct RString* s = (struct RString*)mrb_obj_alloc(mrb, MRB_TT_STRING, mrb->string_class);
-  int errno_save = errno;
   char *line = NULL;
   size_t capa = 0;
   do {
@@ -146,11 +143,9 @@ mrb_linenoise(mrb_state *mrb, mrb_value self)
     if (errno) {
       mrb_sys_fail(mrb, "linenoise");
     }
-    errno = errno_save;
     return mrb_nil_value();
   }
 
-  errno = errno_save;
 
   if (capa > MRB_INT_MAX) {
     memset(line, 0, capa);
@@ -172,15 +167,11 @@ mrb_linenoiseHistoryAdd(mrb_state *mrb, mrb_value self)
 
   mrb_get_args(mrb, "z", &line);
 
-  int errno_save = errno;
-
   errno = 0;
   if (!linenoiseHistoryAdd(line)) {
     if (errno)
       mrb_sys_fail(mrb, "linenoiseHistoryAdd");
   }
-
-  errno = errno_save;
 
   return self;
 }
