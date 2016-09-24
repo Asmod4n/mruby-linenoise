@@ -1186,7 +1186,7 @@ int linenoiseHistorySave(const char *filename) {
     FILE *fp;
     int j;
 
-    fp = fopen(filename,"w")
+    fp = fopen(filename,"w");
     umask(old_umask);
     if (fp == NULL) return -1;
     chmod(filename,S_IRUSR|S_IWUSR);
