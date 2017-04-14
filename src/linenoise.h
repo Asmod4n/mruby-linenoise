@@ -39,11 +39,11 @@
 #ifndef __LINENOISE_H
 #define __LINENOISE_H
 
+#include <mruby.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <mruby.h>
 
 typedef struct linenoiseCompletions {
   size_t len;
@@ -62,10 +62,12 @@ char* linenoise(const char *prompt, mrb_state *mrb, size_t *capa);
 void linenoiseFree(void *ptr);
 int linenoiseHistoryAdd(const char *line);
 int linenoiseHistorySetMaxLen(int len);
+int linenoiseHistoryGetMaxLen(void);
 int linenoiseHistorySave(const char *filename);
 int linenoiseHistoryLoad(const char *filename);
 void linenoiseClearScreen(void);
 void linenoiseSetMultiLine(int ml);
+int linenoiseGetMultiLine(void);
 void linenoisePrintKeyCodes(void);
 
 #ifdef __cplusplus

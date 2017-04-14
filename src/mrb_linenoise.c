@@ -20,7 +20,7 @@ mrb_linenoise_completion_callback(const char *buf, linenoiseCompletions *lc, mrb
     return;
   }
 
-  mrb_value res = mrb_yield(mrb, completion_cb, mrb_str_new_static(mrb, buf, strlen(buf)));
+  mrb_value res = mrb_yield(mrb, completion_cb, mrb_str_new_cstr(mrb, buf));
   switch(mrb_type(res)) {
     case MRB_TT_FALSE:
       break;
@@ -66,7 +66,7 @@ mrb_linenoise_hints_callback(const char *buf, int *color, int *bold, mrb_state *
 
   int ai = mrb_gc_arena_save(mrb);
 
-  mrb_value res = mrb_yield(mrb, hints_cb, mrb_str_new_static(mrb, buf, strlen(buf)));
+  mrb_value res = mrb_yield(mrb, hints_cb, mrb_str_new_cstr(mrb, buf));
 
   if (mrb_test(res)) {
     if (mrb_respond_to(mrb, res, mrb_intern_lit(mrb, "to_str"))) {
@@ -131,7 +131,6 @@ mrb_linenoise(mrb_state *mrb, mrb_value self)
 
   mrb_get_args(mrb, "|z", &prompt);
 
-  struct RString* s = (struct RString*)mrb_obj_alloc(mrb, MRB_TT_STRING, mrb->string_class);
   char *line = NULL;
   size_t capa = 0;
   do {
@@ -146,18 +145,35 @@ mrb_linenoise(mrb_state *mrb, mrb_value self)
     return mrb_nil_value();
   }
 
-
   if (capa > MRB_INT_MAX) {
     memset(line, 0, capa);
     free(line);
     mrb_raise(mrb, E_ARGUMENT_ERROR, "string size too big");
   }
 
-  s->as.heap.len = strlen(line);
-  s->as.heap.aux.capa = capa;
-  s->as.heap.ptr = line;
+  struct mrb_jmpbuf* prev_jmp = mrb->jmp;
+  struct mrb_jmpbuf c_jmp;
 
-  return mrb_obj_value(s);
+  mrb_value line_val = mrb_nil_value();
+
+  MRB_TRY(&c_jmp)
+  {
+    mrb->jmp = &c_jmp;
+    line_val = mrb_str_new_cstr(mrb, line);
+    memset(line, 0, capa);
+    free(line);
+    mrb->jmp = prev_jmp;
+  }
+  MRB_CATCH(&c_jmp)
+  {
+    mrb->jmp = prev_jmp;
+    memset(line, 0, capa);
+    free(line);
+    MRB_THROW(mrb->jmp);
+  }
+  MRB_END_EXC(&c_jmp);
+
+  return line_val;
 }
 
 static mrb_value
@@ -188,6 +204,12 @@ mrb_linenoiseHistorySetMaxLen(mrb_state *mrb, mrb_value self)
   }
 
   return self;
+}
+
+static mrb_value
+mrb_linenoiseHistoryGetMaxLen(mrb_state *mrb, mrb_value self)
+{
+  return mrb_fixnum_value(linenoiseHistoryGetMaxLen());
 }
 
 static mrb_value
@@ -239,6 +261,12 @@ mrb_linenoiseSetMultiLine(mrb_state *mrb, mrb_value self)
 }
 
 static mrb_value
+mrb_linenoiseGetMultiLine(mrb_state *mrb, mrb_value self)
+{
+  return mrb_bool_value(linenoiseGetMultiLine());
+}
+
+static mrb_value
 mrb_linenoisePrintKeyCodes(mrb_state *mrb, mrb_value self)
 {
   linenoisePrintKeyCodes();
@@ -259,11 +287,13 @@ mrb_mruby_linenoise_gem_init(mrb_state* mrb)
   mrb_define_module_function(mrb, linenoise_history_mod, "add", mrb_linenoiseHistoryAdd, MRB_ARGS_REQ(1));
   mrb_define_alias(mrb, linenoise_history_mod, "<<", "add");
   mrb_define_module_function(mrb, linenoise_history_mod, "max_len=", mrb_linenoiseHistorySetMaxLen, MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, linenoise_history_mod, "max_len", mrb_linenoiseHistoryGetMaxLen, MRB_ARGS_NONE());
   mrb_define_module_function(mrb, linenoise_history_mod, "save", mrb_linenoiseHistorySave, MRB_ARGS_REQ(1));
   mrb_define_module_function(mrb, linenoise_history_mod, "load", mrb_linenoiseHistoryLoad, MRB_ARGS_REQ(1));
 
   mrb_define_module_function(mrb, linenoise_mod, "clear_screen", mrb_linenoiseClearScreen, MRB_ARGS_NONE());
   mrb_define_module_function(mrb, linenoise_mod, "multi_line=", mrb_linenoiseSetMultiLine, MRB_ARGS_REQ(1));
+  mrb_define_module_function(mrb, linenoise_mod, "multi_line", mrb_linenoiseGetMultiLine, MRB_ARGS_NONE());
   mrb_define_module_function(mrb, linenoise_mod, "print_key_codes", mrb_linenoisePrintKeyCodes, MRB_ARGS_NONE());
 }
 

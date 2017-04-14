@@ -203,6 +203,10 @@ void linenoiseSetMultiLine(int ml) {
     mlmode = ml;
 }
 
+int linenoiseGetMultiLine(void) {
+    return mlmode;
+}
+
 /* Return true if the terminal name is in the list of terminals we know are
  * not able to understand basic escape sequences. */
 static int isUnsupportedTerm(void) {
@@ -1046,6 +1050,7 @@ char *linenoise(const char *prompt, mrb_state *mrb, size_t *capa) {
     char buf[LINENOISE_MAX_LINE];
     int count;
     *capa = 0;
+    memset(buf, 0, sizeof(buf));
 
     if (!isatty(STDIN_FILENO)) {
         /* Not a tty: read from file / pipe. In this mode we don't want any
@@ -1177,6 +1182,10 @@ int linenoiseHistorySetMaxLen(int len) {
     if (history_len > history_max_len)
         history_len = history_max_len;
     return 1;
+}
+
+int linenoiseHistoryGetMaxLen(void) {
+    return history_max_len;
 }
 
 /* Save the history in the specified file. On success 0 is returned
