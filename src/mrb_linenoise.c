@@ -7,6 +7,7 @@
 #include <mruby/error.h>
 #include <string.h>
 #include <mruby/throw.h>
+#include <mruby/class.h>
 #include <stdlib.h>
 #include "linenoise.h"
 
